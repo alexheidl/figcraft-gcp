@@ -72,6 +72,8 @@ load_deployment() {
 		fi
 	done
 	MACHINE_TYPE="${MACHINE_TYPE:-e2-small}"
+	NETWORK="${NETWORK:-default}"
+	RESOURCE_PREFIX="${RESOURCE_PREFIX:-figcraft}"
 	CONTROL_PORT="${CONTROL_PORT:-47800}"
 	DEPLOYMENT="$name"
 }

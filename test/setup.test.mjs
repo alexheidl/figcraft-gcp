@@ -277,3 +277,35 @@ test("team-list without a file id prints its usage, not a bash error", () => {
 	assert.match(r.stderr, /usage: bin\/team-list/);
 	assert.doesNotMatch(r.stderr, /unbound variable/);
 });
+
+test("by default the network resources keep their figcraft-… names on the default network", () => {
+	const out = dry();
+	for (const piece of [
+		"compute routers create figcraft-router --network=default",
+		"compute routers nats create figcraft-nat --router=figcraft-router",
+		"compute firewall-rules create figcraft-allow-iap --network=default",
+		"--target-tags=figcraft",
+		"--tags=figcraft",
+		"snapshot-schedule figcraft-daily",
+		"--resource-policies=figcraft-daily",
+	]) {
+		assert.ok(out.includes(piece), `missing ${piece}`);
+	}
+});
+
+test("RESOURCE_PREFIX and NETWORK let two deployments share a project", () => {
+	const out = dry(["--deployment", "other"], {
+		FIGCRAFT_DEPLOYMENTS: otherDeployment(["RESOURCE_PREFIX=fc-team-b", "NETWORK=design-net"]),
+	});
+	for (const piece of [
+		"compute routers create fc-team-b-router --network=design-net",
+		"compute routers nats create fc-team-b-nat --router=fc-team-b-router",
+		"compute firewall-rules create fc-team-b-allow-iap --network=design-net",
+		"--target-tags=fc-team-b",
+		"--network=design-net",
+		"snapshot-schedule fc-team-b-daily",
+	]) {
+		assert.ok(out.includes(piece), `missing ${piece}`);
+	}
+	assert.doesNotMatch(out, /figcraft-(router|nat|allow-iap|daily)\b/);
+});

@@ -25,7 +25,8 @@ flowchart LR
 
 **To set up a server** you need:
 
-- a Google Cloud project with billing turned on, and the `default` VPC network
+- a Google Cloud project with billing turned on, and an auto-mode VPC network (`default`, unless
+  you set `NETWORK`)
 - the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) (`gcloud`), signed in with
   `gcloud auth login` as someone who can create VMs, firewall rules, IAM bindings and secrets in
   that project
@@ -78,8 +79,11 @@ FigCraft version and the local tunnel port. `deployments/example.env` shows ever
 3. Check what would happen: `bin/setup --deployment <name> --dry-run`.
 4. Set it up: `bin/setup --deployment <name>`.
 
-Use one GCP project per deployment. The network, firewall and snapshot names are the same in every
-deployment, and IAP access is granted on the whole project.
+**Prefer one GCP project per deployment.** The tunnel permission is granted on the whole project
+(limited to FigCraft's port), so members of one deployment could also reach another deployment's VM
+in the same project. When the same people use several deployments, they can share a project: give
+each its own `RESOURCE_PREFIX`, which names the router, Cloud NAT, firewall rule, network tag and
+snapshot schedule. `NETWORK` picks an auto-mode VPC network other than `default`.
 
 ## What's where
 
