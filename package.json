@@ -1,0 +1,17 @@
+{
+	"name": "figcraft-gcp",
+	"private": true,
+	"description": "Run your own private FigCraft collaboration server on Google Cloud",
+	"type": "module",
+	"scripts": {
+		"test": "node --test test/*.test.mjs"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"license": "MIT OR Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/alexheidl/figcraft-gcp.git"
+	}
+}

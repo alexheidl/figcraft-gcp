@@ -1,0 +1,19 @@
+# figcraft-server settings (installed to /etc/figcraft-server/server.toml by provision.sh).
+# bin/setup fills in @LOCAL_PORT@ from the deployment before copying it to the VM.
+# Every key not set here keeps its default; see `figcraft-server --help`.
+
+# Every interface: IAP's TCP forwarding arrives from 35.235.240.0/20, and the VM has no public
+# address. The firewall rule figcraft-allow-iap admits only that range.
+listen = "0.0.0.0:47900"
+data = "/var/lib/figcraft-server"
+
+# Everyone reaches the server through their own IAP tunnel on this local port, so share links
+# name it. A link works only for someone whose tunnel is up, i.e. who passed Google login.
+public_url = "ws://127.0.0.1:@LOCAL_PORT@/"
+
+# Only people with the server key (Secret Manager: figcraft-server-key) publish files.
+open_publish = false
+
+# The team list: files shared with a join code are listed under Home ▸ Online for everyone who
+# reaches the server (only people through IAP), who open them with edit access. No secret links.
+team_files = "edit"

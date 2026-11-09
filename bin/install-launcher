@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Puts figcraft-connect in the app menu: opening FigCraft from the menu then signs into Google,
+# opens the IAP tunnel and starts FigCraft with Claude's control port.
+#
+#   bin/install-launcher [--deployment NAME]
+set -euo pipefail
+here="$(cd "${BASH_SOURCE[0]%/*}" && pwd)"
+# shellcheck source=../lib/deployment.sh
+source "$here/../lib/deployment.sh"
+take_deployment_flag "$@"
+load_deployment
+
+connect="$here/figcraft-connect --deployment $DEPLOYMENT"
+system=/usr/share/applications/ai.storyteller.figcraft.desktop
+dir="$HOME/.local/share/applications"
+mkdir -p "$dir"
+
+if [[ -f "$system" ]]; then
+	sed "s|^Exec=.*|Exec=$connect %U|" "$system" >"$dir/ai.storyteller.figcraft.desktop"
+else
+	cat >"$dir/ai.storyteller.figcraft.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=FigCraft
+Comment=Design and prototype user interfaces
+Exec=$connect %U
+Icon=ai.storyteller.figcraft
+Terminal=false
+Categories=Graphics;
+EOF
+fi
+
+update-desktop-database "$dir" >/dev/null 2>&1 || true
+echo "App menu: FigCraft now opens through $connect"

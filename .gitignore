@@ -1,0 +1,5 @@
+node_modules/
+*.key
+# Your deployments hold your project and people: keep them out of the repository.
+deployments/*.env
+!deployments/example.env

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Puts a file on (or, with "unshare", takes it off) a FigCraft server's team list, through the
+# running FigCraft app (figcraft-cli mcp --attach). The server key goes from Secret Manager into a
+# private temp file and is never printed.
+#
+#   bin/team-list [--deployment NAME] FILE_ID [share|unshare]
+set -euo pipefail
+# shellcheck source=../lib/deployment.sh
+source "$(cd "${BASH_SOURCE[0]%/*}" && pwd)/../lib/deployment.sh"
+take_deployment_flag "$@"
+load_deployment
+set -- "${ARGS[@]}"
+file=${1:?usage: bin/team-list [--deployment NAME] FILE_ID [share|unshare]}; action=${2:-share}
+case $action in share|unshare) ;; *) echo "action must be share or unshare" >&2; exit 2;; esac
+dir=$(mktemp -d); chmod 700 "$dir"; trap 'rm -rf "$dir"' EXIT
+gcloud secrets versions access latest "--secret=$SECRET" "--project=$PROJECT" \
+  | grep -o 'ws://[^[:space:]]*key=[^[:space:]]*' | head -n 1 > "$dir/addr"
+[ -s "$dir/addr" ] || { echo "Couldn't find the server address in the secret." >&2; exit 1; }
+
+# MCP over stdio: initialize, initialized, then one tools/call of run_command.
+jq -Rc --arg file "$file" --arg action "$action" '
+  {jsonrpc:"2.0", id:1, method:"initialize",
+   params:{protocolVersion:"2025-06-18", capabilities:{}, clientInfo:{name:"team-list", version:"1"}}},
+  {jsonrpc:"2.0", method:"notifications/initialized"},
+  {jsonrpc:"2.0", id:2, method:"tools/call",
+   params:{name:"run_command", arguments:{command:"collab.manageFile",
+     params:{file:$file, server:., owner:"operator", action:$action}}}}
+' "$dir/addr" > "$dir/in.jsonl"
+
+# Keep stdin open briefly so the call can finish, then close it.
+{ cat "$dir/in.jsonl"; sleep 15; } | timeout 30 figcraft-cli mcp --attach "127.0.0.1:$CONTROL_PORT" > "$dir/out.jsonl" 2>"$dir/err" || true
+
+# Print only whether it worked: the result also holds join codes and links, which are secrets.
+jq -r 'select(.id==2) | if .error then "error: \(.error.message)"
+       else (.result.content[0].text // "" | (fromjson? // .) |
+             if type=="object" then "shared: \(.shared // "?")" else "result: \(.[0:200])" end) end' \
+  "$dir/out.jsonl" 2>/dev/null | sed -E 's/(token|key|code)=[^&" ]*/\1=<hidden>/g' \
+  || { echo "No reply from the app. stderr:"; sed -E 's/key=[^&" ]*/key=<hidden>/g' "$dir/err" | tail -5; }

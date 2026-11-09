@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# One click to a FigCraft server: Google login → IAP tunnel → FigCraft with Claude's control port.
+#
+#   bin/figcraft-connect [--deployment NAME]
+#
+# Safe to run again at any time: it restarts a dead tunnel and never starts a second one, and it
+# starts FigCraft only when it isn't running. See README.md.
+set -euo pipefail
+# shellcheck source=../lib/deployment.sh
+source "$(cd "${BASH_SOURCE[0]%/*}" && pwd)/../lib/deployment.sh"
+take_deployment_flag "$@"
+load_deployment
+PORT=$LOCAL_PORT
+ALLOWED="$MEMBERS"
+
+state="$HOME/.cache/figcraft/$DEPLOYMENT"
+pidfile="$state/tunnel.pid"
+mkdir -p "$state"
+
+# Opened from the app menu there is no terminal: say it on screen too.
+say() {
+	echo "$1"
+	command -v notify-send >/dev/null 2>&1 && notify-send "FigCraft" "$1" 2>/dev/null || true
+}
+
+active_account() { gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | head -n 1; }
+healthy() { curl -fsS --max-time 2 "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1; }
+
+account="$(active_account)"
+if [[ -z "$account" ]]; then
+	gcloud auth login
+	account="$(active_account)"
+fi
+if [[ -z "$account" || " $ALLOWED " != *" $account "* ]]; then
+	say "gcloud is signed in as ${account:-nobody}; IAP only admits: $ALLOWED. Run: gcloud config set account <yours>   (or: gcloud auth login)"
+	exit 3
+fi
+
+# A listed account can still have an expired or revoked sign-in; the tunnel would then fail with
+# a re-auth message nobody sees. Check it can get a token, and sign in again if not.
+token_ok() { gcloud auth print-access-token >/dev/null 2>&1; }
+if ! token_ok; then
+	gcloud auth login "$account" || true
+	if ! token_ok; then
+		say "Your Google sign-in for $account has expired. Run: gcloud auth login $account"
+		exit 4
+	fi
+fi
+
+if ! healthy; then
+	if [[ -s "$pidfile" ]]; then
+		kill "$(cat "$pidfile")" 2>/dev/null || true
+		rm -f "$pidfile"
+	fi
+	tunnel=(gcloud compute start-iap-tunnel "$VM" "$SERVER_PORT" "--local-host-port=localhost:$PORT" "--zone=$ZONE" "--project=$PROJECT")
+	if [[ -n "${FIGCRAFT_CONNECT_NO_DETACH:-}" ]]; then
+		"${tunnel[@]}" >"$state/tunnel.log" 2>&1 &
+	else
+		setsid nohup "${tunnel[@]}" >"$state/tunnel.log" 2>&1 &
+	fi
+	echo $! >"$pidfile"
+	for _ in $(seq 1 40); do
+		healthy && break
+		sleep 0.5
+	done
+	if ! healthy; then
+		say "The tunnel to the FigCraft server did not come up. Log: $state/tunnel.log"
+		exit 1
+	fi
+fi
+
+if ! pgrep -x figcraft >/dev/null 2>&1; then
+	# Share ▸ Online must reach our server, never FigCraft's public default, and comments are signed
+	# with the person's name (from their Google account). The app keeps preferences in memory and
+	# writes them late, so set them on disk while the app is closed.
+	settings="$HOME/.config/FigCraft/state.json"
+	# On a first run FigCraft hasn't written its settings yet: create them, so Share ▸ Online
+	# never targets FigCraft's public server.
+	mkdir -p "$(dirname "$settings")"
+	{
+		node -e '
+			const fs = require("fs");
+			const [file, url, account] = process.argv.slice(1);
+			let s = {};
+			try { s = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+			const local = account.split("@")[0];
+			const name = local.charAt(0).toUpperCase() + local.slice(1);
+			s.prefs = { ...(s.prefs || {}), publish_server: url, user_name: name };
+			fs.writeFileSync(file, JSON.stringify(s));
+		' "$settings" "ws://127.0.0.1:$PORT/" "$account"
+	} || say "Couldn't write $settings; set Preferences ▸ Server to ws://127.0.0.1:$PORT/ by hand."
+
+	# No --automation-*-root: FigCraft switches off publishing and live sessions while they are set.
+	app=(figcraft --control "$CONTROL_PORT")
+	if [[ -n "${FIGCRAFT_CONNECT_NO_DETACH:-}" ]]; then
+		"${app[@]}" >"$state/figcraft.log" 2>&1
+	else
+		setsid nohup "${app[@]}" >"$state/figcraft.log" 2>&1 &
+	fi
+fi
+
+echo "Connected as $account. In FigCraft: Preferences ▸ Server = ws://127.0.0.1:$PORT/"

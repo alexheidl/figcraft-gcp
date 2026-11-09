@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Sets up a FigCraft collaboration server on GCE, reachable only through IAP.
+#
+#   bin/setup [--deployment NAME] [--dry-run]
+#
+# The settings come from deployments/NAME.env (see lib/deployment.sh). Idempotent: every resource is
+# created only when it is missing. --dry-run prints each gcloud command instead of running it (and
+# needs no gcloud). See README.md.
+set -euo pipefail
+here="$(cd "${BASH_SOURCE[0]%/*}" && pwd)"
+# shellcheck source=../lib/deployment.sh
+source "$here/../lib/deployment.sh"
+take_deployment_flag "$@"
+load_deployment
+
+IAP_RANGE=35.235.240.0/20
+read -r -a members <<<"$MEMBERS"
+
+DRY=false
+[[ " ${ARGS[*]:-} " == *" --dry-run "* ]] && DRY=true
+
+run() { if $DRY; then printf '%s\n' "$*"; else "$@"; fi; }
+missing() { $DRY && return 0; ! "$@" >/dev/null 2>&1; }
+
+# server.toml names the local tunnel port in its share links, so it is filled in per deployment.
+# A dry run only prints, so it stages nothing (and needs nothing on PATH).
+staging="$here/../server"
+if ! $DRY; then
+	staging="$(mktemp -d)"
+	trap 'rm -rf "$staging"' EXIT
+	sed "s/@LOCAL_PORT@/$LOCAL_PORT/g" "$here/../server/server.toml" >"$staging/server.toml"
+	cp "$here/../server/provision.sh" "$here/../server/iap.conf" "$staging/"
+fi
+
+g=(gcloud "--project=$PROJECT")
+
+run "${g[@]}" services enable compute.googleapis.com iap.googleapis.com
+
+if missing "${g[@]}" compute routers describe figcraft-router "--region=$REGION"; then
+	run "${g[@]}" compute routers create figcraft-router --network=default "--region=$REGION"
+fi
+if missing "${g[@]}" compute routers nats describe figcraft-nat --router=figcraft-router "--region=$REGION"; then
+	run "${g[@]}" compute routers nats create figcraft-nat --router=figcraft-router "--region=$REGION" \
+		--auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges
+fi
+
+if missing "${g[@]}" compute firewall-rules describe figcraft-allow-iap; then
+	run "${g[@]}" compute firewall-rules create figcraft-allow-iap --network=default --direction=INGRESS --action=ALLOW \
+		"--source-ranges=$IAP_RANGE" "--rules=tcp:22,tcp:$SERVER_PORT" --target-tags=figcraft
+fi
+
+if missing "${g[@]}" compute instances describe "$VM" "--zone=$ZONE"; then
+	run "${g[@]}" compute instances create "$VM" "--zone=$ZONE" "--machine-type=$MACHINE_TYPE" --no-address \
+		--image-family=debian-12 --image-project=debian-cloud --tags=figcraft --boot-disk-size=20GB \
+		--metadata=enable-oslogin=TRUE
+fi
+
+if missing "${g[@]}" compute resource-policies describe figcraft-daily "--region=$REGION"; then
+	run "${g[@]}" compute resource-policies create snapshot-schedule figcraft-daily "--region=$REGION" \
+		--max-retention-days=7 --daily-schedule --start-time=20:00 --on-source-disk-delete=keep-auto-snapshots
+	run "${g[@]}" compute disks add-resource-policies "$VM" "--zone=$ZONE" --resource-policies=figcraft-daily
+fi
+
+# IAP TCP access can't be granted on one VM; it binds at project level. The condition limits it
+# to the FigCraft port, so it opens nothing else in the project (and no SSH for members).
+for member in "${members[@]}"; do
+	run "${g[@]}" projects add-iam-policy-binding "$PROJECT" "--member=user:$member" \
+		--role=roles/iap.tunnelResourceAccessor \
+		"--condition=expression=destination.port == $SERVER_PORT,title=figcraft-tunnel-only" --quiet
+done
+run "${g[@]}" compute instances add-iam-policy-binding "$VM" "--zone=$ZONE" \
+	"--member=user:$ADMIN" --role=roles/compute.osAdminLogin
+
+iap=("--zone=$ZONE" --tunnel-through-iap)
+if ! $DRY; then
+	echo "Waiting for SSH through IAP…"
+	for _ in $(seq 1 30); do
+		"${g[@]}" compute ssh "$VM" "${iap[@]}" --command true >/dev/null 2>&1 && break
+		sleep 10
+	done
+fi
+run "${g[@]}" compute scp "${iap[@]}" "$staging/provision.sh" "$staging/server.toml" "$staging/iap.conf" "$VM:/tmp/"
+run "${g[@]}" compute ssh "$VM" "${iap[@]}" --command "sudo bash /tmp/provision.sh $FIGCRAFT_VERSION"
+
+# The server key goes straight from the VM into Secret Manager; it is never printed.
+if missing "${g[@]}" secrets describe "$SECRET"; then
+	run "${g[@]}" secrets create "$SECRET" --replication-policy=automatic
+fi
+if $DRY; then
+	printf '%s\n' "${g[*]} compute ssh $VM ${iap[*]} --command 'sudo figcraft-server key --config /etc/figcraft-server/server.toml' | ${g[*]} secrets versions add $SECRET --data-file=-"
+elif missing "${g[@]}" secrets versions access latest "--secret=$SECRET"; then
+	"${g[@]}" compute ssh "$VM" "${iap[@]}" --command \
+		'sudo -u figcraft /usr/local/bin/figcraft-server key --config /etc/figcraft-server/server.toml' 2>/dev/null |
+		"${g[@]}" secrets versions add "$SECRET" --data-file=- >/dev/null
+	echo "Server key stored in Secret Manager as $SECRET."
+fi
+
+$DRY || echo "Done. Connect with: bin/figcraft-connect --deployment $DEPLOYMENT"
