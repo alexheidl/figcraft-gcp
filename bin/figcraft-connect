@@ -85,6 +85,7 @@ if ! pgrep -x figcraft >/dev/null 2>&1; then
 	# never targets FigCraft's public server.
 	mkdir -p "$(dirname "$settings")"
 	{
+		# shellcheck disable=SC2016 # JavaScript, not shell: nothing should expand.
 		node -e '
 			const fs = require("fs");
 			const [file, url, account] = process.argv.slice(1);

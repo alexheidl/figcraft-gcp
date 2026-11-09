@@ -5,6 +5,8 @@
 # it is used without asking. deployments/example.env is never picked on its own.
 # Keep your deployments in deployments/ (git ignores them) or in any folder: FIGCRAFT_DEPLOYMENTS=DIR.
 
+# The variables set here are read by the scripts that source this file.
+# shellcheck disable=SC2034
 FIGCRAFT_ROOT="$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)"
 FIGCRAFT_DEPLOYMENTS="${FIGCRAFT_DEPLOYMENTS:-$FIGCRAFT_ROOT/deployments}"
 

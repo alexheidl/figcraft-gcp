@@ -9,6 +9,7 @@ set -euo pipefail
 source "$(cd "${BASH_SOURCE[0]%/*}" && pwd)/../lib/deployment.sh"
 take_deployment_flag "$@"
 load_deployment
+# shellcheck disable=SC2068
 set -- ${ARGS[@]+"${ARGS[@]}"} # bash 3.2 treats an empty "${ARGS[@]}" as unset
 file=${1:?usage: bin/team-list [--deployment NAME] FILE_ID [share|unshare]}; action=${2:-share}
 case $action in share|unshare) ;; *) echo "action must be share or unshare" >&2; exit 2;; esac
@@ -18,6 +19,7 @@ gcloud secrets versions access latest "--secret=$SECRET" "--project=$PROJECT" \
 [ -s "$dir/addr" ] || { echo "Couldn't find the server address in the secret." >&2; exit 1; }
 
 # MCP over stdio: initialize, initialized, then one tools/call of run_command.
+# shellcheck disable=SC2016 # jq programs, not shell: nothing should expand.
 jq -Rc --arg file "$file" --arg action "$action" '
   {jsonrpc:"2.0", id:1, method:"initialize",
    params:{protocolVersion:"2025-06-18", capabilities:{}, clientInfo:{name:"team-list", version:"1"}}},

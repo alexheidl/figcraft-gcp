@@ -1,0 +1,5 @@
+# The scripts read their settings (PROJECT, ZONE, VM, …) from deployments/<name>.env at run time,
+# which shellcheck can't follow.
+disable=SC2154
+source-path=SCRIPTDIR
+external-sources=true

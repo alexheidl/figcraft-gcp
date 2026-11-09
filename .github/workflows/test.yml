@@ -5,10 +5,25 @@ on:
   pull_request:
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # macOS runs the scripts under its own bash 3.2; the Linux-only launcher's tests skip there.
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm test
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck --severity=warning bin/* lib/*.sh server/provision.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: prettier
+        run: npx --yes prettier@3 --check .
