@@ -3,7 +3,7 @@
 Each release names the FigCraft version it installs by default. Run the same version of the
 desktop app.
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-10)
 
 Supports FigCraft 0.17.0.
 
