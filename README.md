@@ -298,6 +298,13 @@ gcloud compute ssh "$VM" "--zone=$ZONE" --tunnel-through-iap "--project=$PROJECT
   --command 'journalctl -u figcraft-server -n 50'
 ```
 
+## Contributing and security
+
+- **Contributing:** see [CONTRIBUTING.md](CONTRIBUTING.md). Run `npm test` before a pull request.
+- **Security problems:** report them privately, as [SECURITY.md](SECURITY.md) describes. It also
+  explains what this setup protects and what it doesn't.
+- **Changes:** [CHANGELOG.md](CHANGELOG.md).
+
 ## Licence
 
 Licensed under either of
