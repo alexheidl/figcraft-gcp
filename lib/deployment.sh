@@ -1,4 +1,5 @@
 # Sourced by the scripts in bin/. Loads one deployment's settings from deployments/<name>.env.
+# Written for bash 3.2 (macOS) and newer: no mapfile, associative arrays or ${var,,}.
 #
 # Pick the deployment with --deployment NAME (or FIGCRAFT_DEPLOYMENT=NAME). With only one deployment,
 # it is used without asking. deployments/example.env is never picked on its own.
@@ -45,8 +46,8 @@ deployment_names() {
 load_deployment() {
 	local name="${FIGCRAFT_DEPLOYMENT:-}"
 	if [[ -z $name ]]; then
-		local names
-		mapfile -t names < <(deployment_names)
+		local names=() n
+		while IFS= read -r n; do names+=("$n"); done < <(deployment_names)
 		if ((${#names[@]} == 1)); then
 			name="${names[0]}"
 		else

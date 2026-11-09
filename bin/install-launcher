@@ -10,6 +10,13 @@ source "$here/../lib/deployment.sh"
 take_deployment_flag "$@"
 load_deployment
 
+if [[ "$(uname -s)" != Linux ]]; then
+	echo "The app-menu entry is for Linux only. Elsewhere, open the tunnel with:" >&2
+	echo "  gcloud compute start-iap-tunnel $VM $SERVER_PORT --local-host-port=localhost:$LOCAL_PORT --zone=$ZONE --project=$PROJECT" >&2
+	echo "and set FigCraft's Preferences ▸ Server to ws://127.0.0.1:$LOCAL_PORT/" >&2
+	exit 5
+fi
+
 connect="$here/figcraft-connect --deployment $DEPLOYMENT"
 system=/usr/share/applications/ai.storyteller.figcraft.desktop
 dir="$HOME/.local/share/applications"

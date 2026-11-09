@@ -1,4 +1,7 @@
-import { test } from "node:test";
+import { test as nodeTest } from "node:test";
+
+// The launcher is Linux-only (setsid, notify-send, .desktop files): its tests run only there.
+const test = (name, fn) => nodeTest(name, { skip: process.platform !== "linux" }, fn);
 import assert from "node:assert/strict";
 import {
 	mkdtempSync,
@@ -243,4 +246,15 @@ test("another deployment gets its own project, accounts and local port", () => {
 		/start-iap-tunnel figcraft-other 47900 --local-host-port=localhost:47901 --zone=europe-west3-a --project=other-project/,
 	);
 	assert.match(r.stdout, /ws:\/\/127\.0\.0\.1:47901\//);
+});
+
+test("off Linux, the launcher explains how to connect instead of failing halfway", () => {
+	const s = sandbox();
+	writeFileSync(join(s.root, "bin", "uname"), "#!/bin/bash\necho Darwin\n");
+	chmodSync(join(s.root, "bin", "uname"), 0o755);
+	const r = s.run();
+	assert.equal(r.status, 5);
+	assert.match(r.stderr, /Linux only/);
+	assert.match(r.stderr, /start-iap-tunnel figcraft 47900 --local-host-port=localhost:47900/);
+	assert.doesNotMatch(s.logOf("gcloud"), /start-iap-tunnel/);
 });

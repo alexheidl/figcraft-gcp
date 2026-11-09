@@ -9,7 +9,7 @@ set -euo pipefail
 source "$(cd "${BASH_SOURCE[0]%/*}" && pwd)/../lib/deployment.sh"
 take_deployment_flag "$@"
 load_deployment
-set -- "${ARGS[@]}"
+set -- ${ARGS[@]+"${ARGS[@]}"} # bash 3.2 treats an empty "${ARGS[@]}" as unset
 file=${1:?usage: bin/team-list [--deployment NAME] FILE_ID [share|unshare]}; action=${2:-share}
 case $action in share|unshare) ;; *) echo "action must be share or unshare" >&2; exit 2;; esac
 dir=$(mktemp -d); chmod 700 "$dir"; trap 'rm -rf "$dir"' EXIT
@@ -28,7 +28,13 @@ jq -Rc --arg file "$file" --arg action "$action" '
 ' "$dir/addr" > "$dir/in.jsonl"
 
 # Keep stdin open briefly so the call can finish, then close it.
-{ cat "$dir/in.jsonl"; sleep 15; } | timeout 30 figcraft-cli mcp --attach "127.0.0.1:$CONTROL_PORT" > "$dir/out.jsonl" 2>"$dir/err" || true
+# No `timeout`: macOS doesn't ship it. A watchdog stops the call after 30 seconds instead.
+{ cat "$dir/in.jsonl"; sleep 15; } | figcraft-cli mcp --attach "127.0.0.1:$CONTROL_PORT" >"$dir/out.jsonl" 2>"$dir/err" &
+call=$!
+(sleep 30 && kill "$call" 2>/dev/null) &
+watchdog=$!
+wait "$call" 2>/dev/null || true
+kill "$watchdog" 2>/dev/null || true
 
 # Print only whether it worked: the result also holds join codes and links, which are secrets.
 jq -r 'select(.id==2) | if .error then "error: \(.error.message)"

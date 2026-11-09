@@ -11,6 +11,13 @@ source "$(cd "${BASH_SOURCE[0]%/*}" && pwd)/../lib/deployment.sh"
 take_deployment_flag "$@"
 load_deployment
 PORT=$LOCAL_PORT
+
+if [[ "$(uname -s)" != Linux ]]; then
+	echo "This launcher is for Linux only. Elsewhere, open the tunnel with:" >&2
+	echo "  gcloud compute start-iap-tunnel $VM $SERVER_PORT --local-host-port=localhost:$LOCAL_PORT --zone=$ZONE --project=$PROJECT" >&2
+	echo "and set FigCraft's Preferences ▸ Server to ws://127.0.0.1:$LOCAL_PORT/" >&2
+	exit 5
+fi
 ALLOWED="$MEMBERS"
 
 state="$HOME/.cache/figcraft/$DEPLOYMENT"

@@ -11,7 +11,7 @@ const setup = join(root, "bin", "setup");
 const server = (f) => join(root, "server", f);
 const fixtures = join(root, "test", "fixtures", "deployments");
 const dry = (args = [], env = {}) => {
-	const r = spawnSync("bash", [setup, "--dry-run", ...args], {
+	const r = spawnSync("/bin/bash", [setup, "--dry-run", ...args], {
 		encoding: "utf8",
 		env: { ...process.env, FIGCRAFT_DEPLOYMENTS: fixtures, ...env },
 	});
@@ -113,7 +113,7 @@ test("scripts parse", () => {
 		"server/provision.sh",
 		"lib/deployment.sh",
 	]) {
-		const r = spawnSync("bash", ["-n", join(root, f)], { encoding: "utf8" });
+		const r = spawnSync("/bin/bash", ["-n", join(root, f)], { encoding: "utf8" });
 		assert.equal(r.status, 0, `${f}: ${r.stderr}`);
 	}
 });
@@ -176,7 +176,7 @@ test("another deployment sets up its own project, VM and people", () => {
 test("with several deployments, setup asks which one", () => {
 	const dir = otherDeployment();
 	writeFileSync(join(dir, "second.env"), "PROJECT=x\n");
-	const r = spawnSync("bash", [setup, "--dry-run"], {
+	const r = spawnSync("/bin/bash", [setup, "--dry-run"], {
 		encoding: "utf8",
 		env: { ...process.env, FIGCRAFT_DEPLOYMENTS: dir },
 	});
@@ -189,7 +189,7 @@ test("with several deployments, setup asks which one", () => {
 test("a deployment missing a setting is refused, naming the setting", () => {
 	const dir = mkdtempSync(join(tmpdir(), "deployments-"));
 	writeFileSync(join(dir, "broken.env"), "PROJECT=x\nREGION=y\n");
-	const r = spawnSync("bash", [setup, "--dry-run"], {
+	const r = spawnSync("/bin/bash", [setup, "--dry-run"], {
 		encoding: "utf8",
 		env: { ...process.env, FIGCRAFT_DEPLOYMENTS: dir },
 	});
@@ -211,7 +211,7 @@ test("a real run copies server.toml with the deployment's local port filled in",
 	chmodSync(join(stubs, "gcloud"), 0o755);
 	writeFileSync(join(stubs, "sleep"), "#!/bin/bash\nexit 0\n");
 	chmodSync(join(stubs, "sleep"), 0o755);
-	const r = spawnSync("bash", [setup, "--deployment", "other"], {
+	const r = spawnSync("/bin/bash", [setup, "--deployment", "other"], {
 		encoding: "utf8",
 		env: {
 			...process.env,
@@ -228,7 +228,7 @@ test("a real run copies server.toml with the deployment's local port filled in",
 test("the example deployment is never picked on its own", () => {
 	const dir = mkdtempSync(join(tmpdir(), "deployments-"));
 	writeFileSync(join(dir, "example.env"), readFileSync(join(root, "deployments", "example.env")));
-	const r = spawnSync("bash", [setup, "--dry-run"], {
+	const r = spawnSync("/bin/bash", [setup, "--dry-run"], {
 		encoding: "utf8",
 		env: { ...process.env, FIGCRAFT_DEPLOYMENTS: dir },
 	});
@@ -241,4 +241,39 @@ test("the example deployment is complete: a copy of it sets up", () => {
 	writeFileSync(join(dir, "mine.env"), readFileSync(join(root, "deployments", "example.env")));
 	const out = dry([], { FIGCRAFT_DEPLOYMENTS: dir });
 	assert.match(out, /--project=my-figcraft-project/);
+});
+
+test("scripts avoid bash 4 features, so they run on macOS's bash 3.2", () => {
+	const scripts = [
+		"bin/setup",
+		"bin/team-list",
+		"bin/figcraft-connect",
+		"bin/install-launcher",
+		"lib/deployment.sh",
+	];
+	for (const f of scripts) {
+		const code = readFileSync(join(root, f), "utf8")
+			.split("\n")
+			.filter((l) => !l.trim().startsWith("#"))
+			.join("\n");
+		for (const [what, re] of [
+			["mapfile/readarray", /\b(mapfile|readarray)\b/],
+			["associative arrays", /declare -A|local -A/],
+			["namerefs", /declare -n|local -n/],
+			["case conversion", /\$\{[A-Za-z_]+(,,|\^\^)\}/],
+			["timeout (not on macOS)", /^\s*timeout\b|\|\s*timeout\b/m],
+		]) {
+			assert.doesNotMatch(code, re, `${f} uses ${what}`);
+		}
+	}
+});
+
+test("team-list without a file id prints its usage, not a bash error", () => {
+	const r = spawnSync("/bin/bash", [join(root, "bin", "team-list")], {
+		encoding: "utf8",
+		env: { ...process.env, FIGCRAFT_DEPLOYMENTS: fixtures },
+	});
+	assert.notEqual(r.status, 0);
+	assert.match(r.stderr, /usage: bin\/team-list/);
+	assert.doesNotMatch(r.stderr, /unbound variable/);
 });
