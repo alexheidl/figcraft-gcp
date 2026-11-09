@@ -3,6 +3,11 @@
 Each release names the FigCraft version it installs by default. Run the same version of the
 desktop app.
 
+## Unreleased
+
+- `bin/install-launcher` writes `FIGCRAFT_DEPLOYMENTS` into the app-menu entry when your
+  deployments live outside the checkout. Before, the menu entry couldn't find them.
+
 ## 0.1.1 (2026-11-10)
 
 Supports FigCraft 0.17.0.

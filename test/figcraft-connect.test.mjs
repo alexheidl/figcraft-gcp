@@ -148,14 +148,29 @@ test("install-launcher points the app menu entry at figcraft-connect", () => {
 		join(s.home, ".local", "share", "applications", "ai.storyteller.figcraft.desktop"),
 		"utf8",
 	);
+	const esc = (x) => x.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+	// The fixtures folder isn't this checkout's deployments/, so the entry carries it along.
 	assert.match(
 		entry,
 		new RegExp(
-			`^Exec=${launcher.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")} --deployment demo %U$`,
+			`^Exec=env "FIGCRAFT_DEPLOYMENTS=${esc(fixtures)}" "${esc(launcher)}" --deployment demo %U$`,
 			"m",
 		),
 	);
 	assert.match(entry, /^Name=FigCraft$/m);
+
+	// Started the way the menu starts it, without FIGCRAFT_DEPLOYMENTS in the environment, it works.
+	const exec = entry.match(/^Exec=(.*) %U$/m)[1];
+	const started = spawnSync("/bin/bash", ["-c", exec], {
+		encoding: "utf8",
+		env: {
+			HOME: s.home,
+			PATH: `${join(s.root, "bin")}:${dirname(process.execPath)}:/usr/bin:/bin`,
+			FIGCRAFT_CONNECT_NO_DETACH: "1",
+		},
+	});
+	assert.equal(started.status, 0, started.stderr + started.stdout);
+	assert.match(s.logOf("gcloud"), /start-iap-tunnel figcraft 47900/);
 });
 
 test("points FigCraft sharing at our server before starting the app", () => {

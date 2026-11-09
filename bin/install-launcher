@@ -17,7 +17,13 @@ if [[ "$(uname -s)" != Linux ]]; then
 	exit 5
 fi
 
-connect="$here/figcraft-connect --deployment $DEPLOYMENT"
+# The menu starts the launcher without your shell's environment, so a deployments folder outside
+# this checkout (FIGCRAFT_DEPLOYMENTS) goes into the entry itself.
+connect="\"$here/figcraft-connect\" --deployment $DEPLOYMENT"
+deployments_dir="$(cd "$FIGCRAFT_DEPLOYMENTS" && pwd)"
+if [[ $deployments_dir != "$FIGCRAFT_ROOT/deployments" ]]; then
+	connect="env \"FIGCRAFT_DEPLOYMENTS=$deployments_dir\" $connect"
+fi
 system=/usr/share/applications/ai.storyteller.figcraft.desktop
 dir="$HOME/.local/share/applications"
 mkdir -p "$dir"

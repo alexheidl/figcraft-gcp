@@ -80,6 +80,9 @@ FigCraft version and the local tunnel port. `deployments/example.env` shows ever
 - **Keep your deployments out of the repository.** Put them in `deployments/<name>.env` (git
   ignores everything there except the example), or in any folder of your own and point
   `FIGCRAFT_DEPLOYMENTS` at it.
+- **With your own folder,** add `export FIGCRAFT_DEPLOYMENTS=/path/to/your/deployments` to your
+  shell profile, so every script finds it. `bin/install-launcher` writes the folder into the app
+  menu entry, because the menu doesn't read your profile.
 - **Every script takes `--deployment NAME`.** With only one deployment, it's used without asking.
 
 **Add a deployment:**
