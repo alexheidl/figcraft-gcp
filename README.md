@@ -41,6 +41,17 @@ flowchart LR
   needs Linux and Node.js 20 or newer
 - for `bin/team-list` only: `jq`, and `figcraft-cli` from the FigCraft app
 
+## Set up with Claude
+
+Tell Claude (or another coding agent with a shell):
+
+> Read https://raw.githubusercontent.com/alexheidl/figcraft-gcp/main/docs/setup-with-claude.md and
+> follow it to set up a FigCraft server for me.
+
+It checks your tools, asks for the details (project, region, people, size), shows you a dry run
+and waits for your yes before creating anything, then walks you through the first shared file. It
+never reads the server key. In Claude Code, inside a clone, `/setup` does the same.
+
 ## Quickstart
 
 From an empty Google Cloud project to a shared file:

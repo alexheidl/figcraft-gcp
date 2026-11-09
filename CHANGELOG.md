@@ -3,6 +3,11 @@
 Each release names the FigCraft version it installs by default. Run the same version of the
 desktop app.
 
+## Unreleased
+
+- `docs/setup-with-claude.md`: a prompt that has Claude ask for the details and set up a
+  server, with a `/setup` command for Claude Code.
+
 ## 0.1.0 (2026-11-10)
 
 Supports FigCraft 0.17.0.
