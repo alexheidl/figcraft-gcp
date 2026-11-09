@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Sourced by the scripts in bin/. Loads one deployment's settings from deployments/<name>.env.
 # Written for bash 3.2 (macOS) and newer: no mapfile, associative arrays or ${var,,}.
 #
