@@ -21,6 +21,45 @@ flowchart LR
     VM --> Backups["nightly backups<br/>+ daily disk snapshot"]
 ```
 
+## Before you start
+
+**To set up a server** you need:
+
+- a Google Cloud project with billing turned on, and the `default` VPC network
+- the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) (`gcloud`), signed in with
+  `gcloud auth login` as someone who can create VMs, firewall rules, IAM bindings and secrets in
+  that project
+- bash and the usual Unix tools: Linux or macOS
+
+**To use a server** everyone needs:
+
+- the [FigCraft](https://github.com/storytold/figcraft) desktop app, the same version as the
+  server
+- `gcloud`, signed in with a Google account that is in the deployment's `MEMBERS`
+- an IAP tunnel to the server (see [Connect](#connect)). `bin/figcraft-connect` opens one, and
+  needs Linux and Node.js 20 or newer
+- for `bin/team-list` only: `jq`, and `figcraft-cli` from the FigCraft app
+
+## Quickstart
+
+From an empty Google Cloud project to a shared file:
+
+1. **Describe the server.** Copy `deployments/example.env` to `deployments/<name>.env` and fill in
+   your project, region, zone and the Google accounts of the people who get in.
+2. **Check what would happen:** `bin/setup --dry-run`. It prints every `gcloud` command and runs
+   none.
+3. **Set it up:** `bin/setup`. It creates the VM with no public address, the firewall rule for
+   IAP, Cloud NAT, the daily disk snapshot and the tunnel permissions. Then it installs the
+   FigCraft server (checksum verified) and stores the server key in Secret Manager. This takes a
+   few minutes.
+4. **Connect:** run `bin/figcraft-connect`, or switch on the tunnel another way (see
+   [Connect](#connect)), and start FigCraft.
+5. **Publish a file:** in FigCraft, choose **File ▸ Publish to server…** and enter the
+   `ws://…?key=…` line from the secret. Read it in your own terminal (it's a password):
+   `gcloud secrets versions access latest --secret=<SECRET> --project=<PROJECT>`.
+6. **Share it with everyone in the deployment:** `bin/team-list <file id>`. They find it under
+   **Home ▸ Online ▸ Shared by your team**.
+
 ## Deployments
 
 Each deployment is one settings file: the GCP project, region, VM, the people who get in, the
@@ -82,6 +121,10 @@ Run `bin/figcraft-connect`. It signs you into Google if needed, opens the tunnel
 `bin/install-launcher` once to make the FigCraft entry in your app menu do the same.
 
 Share links name `ws://127.0.0.1:$LOCAL_PORT/`, so they work for anyone whose tunnel is up.
+
+**Everyone in a deployment must use the same local port.** The server writes `LOCAL_PORT` into
+every link it hands out, so a person whose tunnel arrives on another port can't open those links.
+Keep the port in the deployment's file and don't change it per person.
 
 **Open files from Home ▸ Online ▸ "Shared by your team"** (the team list, `team_files = "edit"` in
 `server.toml`). Everyone whose tunnel is up sees the shared files there and opens them with edit

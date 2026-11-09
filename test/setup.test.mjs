@@ -58,6 +58,13 @@ test("dry run grants IAP tunnel access to the deployment's members only", () => 
 	}
 });
 
+test("dry run enables the APIs setup uses, including Secret Manager for the key", () => {
+	assert.match(
+		dry(),
+		/services enable compute\.googleapis\.com iap\.googleapis\.com secretmanager\.googleapis\.com/,
+	);
+});
+
 test("dry run never opens the server to everyone", () => {
 	const out = dry();
 	for (const forbidden of ["allUsers", "allAuthenticatedUsers", "domain:", "0.0.0.0/0"]) {

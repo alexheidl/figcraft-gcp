@@ -34,7 +34,7 @@ fi
 
 g=(gcloud "--project=$PROJECT")
 
-run "${g[@]}" services enable compute.googleapis.com iap.googleapis.com
+run "${g[@]}" services enable compute.googleapis.com iap.googleapis.com secretmanager.googleapis.com
 
 if missing "${g[@]}" compute routers describe figcraft-router "--region=$REGION"; then
 	run "${g[@]}" compute routers create figcraft-router --network=default "--region=$REGION"
