@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Puts figcraft-connect in the app menu: opening FigCraft from the menu then signs into Google,
-# opens the IAP tunnel and starts FigCraft with Claude's control port.
+# opens the IAP tunnel and starts FigCraft (with its automation port, unless CONTROL_PORT=off).
 #
 #   bin/install-launcher [--deployment NAME]
 set -euo pipefail

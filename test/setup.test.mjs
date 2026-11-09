@@ -309,3 +309,17 @@ test("RESOURCE_PREFIX and NETWORK let two deployments share a project", () => {
 	}
 	assert.doesNotMatch(out, /figcraft-(router|nat|allow-iap|daily)\b/);
 });
+
+test("team-list refuses clearly when the deployment turns the automation port off", () => {
+	const dir = mkdtempSync(join(tmpdir(), "deployments-"));
+	writeFileSync(
+		join(dir, "quiet.env"),
+		readFileSync(join(fixtures, "demo.env"), "utf8") + "\nCONTROL_PORT=off\n",
+	);
+	const r = spawnSync("/bin/bash", [join(root, "bin", "team-list"), "0123abcd"], {
+		encoding: "utf8",
+		env: { ...process.env, FIGCRAFT_DEPLOYMENTS: dir, PATH: "/nonexistent" },
+	});
+	assert.equal(r.status, 2);
+	assert.match(r.stderr, /CONTROL_PORT=off/);
+});

@@ -258,3 +258,16 @@ test("off Linux, the launcher explains how to connect instead of failing halfway
 	assert.match(r.stderr, /start-iap-tunnel figcraft 47900 --local-host-port=localhost:47900/);
 	assert.doesNotMatch(s.logOf("gcloud"), /start-iap-tunnel/);
 });
+
+test("CONTROL_PORT=off starts FigCraft without its automation port", () => {
+	const dir = mkdtempSync(join(tmpdir(), "deployments-"));
+	writeFileSync(
+		join(dir, "quiet.env"),
+		readFileSync(join(fixtures, "demo.env"), "utf8") + "\nCONTROL_PORT=off\n",
+	);
+	const s = sandbox();
+	const r = s.run([], { FIGCRAFT_DEPLOYMENTS: dir });
+	assert.equal(r.status, 0, r.stderr + r.stdout);
+	assert.match(s.logOf("figcraft"), /^\s*$/m);
+	assert.doesNotMatch(s.logOf("figcraft"), /--control/);
+});

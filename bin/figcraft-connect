@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# One click to a FigCraft server: Google login → IAP tunnel → FigCraft with Claude's control port.
+# One click to a FigCraft server: Google login → IAP tunnel → FigCraft.
+# FigCraft starts with its automation port (CONTROL_PORT, default 47800) for bin/team-list and for
+# tools such as figcraft-cli mcp, unless the deployment sets CONTROL_PORT=off.
 #
 #   bin/figcraft-connect [--deployment NAME]
 #
@@ -99,7 +101,8 @@ if ! pgrep -x figcraft >/dev/null 2>&1; then
 	} || say "Couldn't write $settings; set Preferences ▸ Server to ws://127.0.0.1:$PORT/ by hand."
 
 	# No --automation-*-root: FigCraft switches off publishing and live sessions while they are set.
-	app=(figcraft --control "$CONTROL_PORT")
+	app=(figcraft)
+	[[ $CONTROL_PORT != off ]] && app+=(--control "$CONTROL_PORT")
 	if [[ -n "${FIGCRAFT_CONNECT_NO_DETACH:-}" ]]; then
 		"${app[@]}" >"$state/figcraft.log" 2>&1
 	else

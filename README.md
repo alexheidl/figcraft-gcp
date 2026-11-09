@@ -121,8 +121,14 @@ ways to run it; pick one:
 | A systemd user service ([below](#keep-the-tunnel-as-a-switch-linux))    | Linux without GNOME. Starts at login and comes back by itself.    |
 
 Run `bin/figcraft-connect`. It signs you into Google if needed, opens the tunnel to
-`localhost:$LOCAL_PORT`, and starts FigCraft with Claude's control port. Run
+`localhost:$LOCAL_PORT`, and starts FigCraft. Run
 `bin/install-launcher` once to make the FigCraft entry in your app menu do the same.
+
+**FigCraft's automation port.** The launcher starts FigCraft with `--control 47800`
+(`CONTROL_PORT`). `bin/team-list` uses it to reach the server through the running app, and tools
+that drive FigCraft, such as AI agents through `figcraft-cli mcp`, can use it too. Nothing else
+needs it: set `CONTROL_PORT=off` in the deployment to start FigCraft without it (then `team-list`
+won't work). The port only listens on your own machine.
 
 Share links name `ws://127.0.0.1:$LOCAL_PORT/`, so they work for anyone whose tunnel is up.
 

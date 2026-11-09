@@ -15,3 +15,6 @@ Supports FigCraft 0.17.0.
   it in the app menu.
 - `bin/team-list` puts a published file on the server's team list without showing the key.
 - `bin/setup` and `bin/team-list` run on Linux and macOS.
+- `RESOURCE_PREFIX` and `NETWORK` let several deployments share one GCP project.
+- FigCraft's automation port (`CONTROL_PORT`, default 47800) can be turned off with
+  `CONTROL_PORT=off`.

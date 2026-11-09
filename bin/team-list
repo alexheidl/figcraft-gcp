@@ -13,6 +13,11 @@ load_deployment
 set -- ${ARGS[@]+"${ARGS[@]}"} # bash 3.2 treats an empty "${ARGS[@]}" as unset
 file=${1:?usage: bin/team-list [--deployment NAME] FILE_ID [share|unshare]}; action=${2:-share}
 case $action in share|unshare) ;; *) echo "action must be share or unshare" >&2; exit 2;; esac
+if [[ $CONTROL_PORT == off ]]; then
+	echo "team-list talks to the running FigCraft app through its automation port, which this deployment turns off (CONTROL_PORT=off)." >&2
+	exit 2
+fi
+
 dir=$(mktemp -d); chmod 700 "$dir"; trap 'rm -rf "$dir"' EXIT
 gcloud secrets versions access latest "--secret=$SECRET" "--project=$PROJECT" \
   | grep -o 'ws://[^[:space:]]*key=[^[:space:]]*' | head -n 1 > "$dir/addr"
