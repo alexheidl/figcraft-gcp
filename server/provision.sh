@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs ON the VM (as root), copied there by bin/setup with server.toml and iap.conf in /tmp.
 #
-#   sudo bash /tmp/provision.sh 0.17.0
+#   sudo bash /tmp/provision.sh 0.18.1
 #
 # Installs figcraft-server from the release (checksum verified), with the release's own hardened
 # systemd unit and nightly backup timer, plus our drop-in that admits IAP's range. Safe to re-run:

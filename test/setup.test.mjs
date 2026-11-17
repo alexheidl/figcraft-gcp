@@ -89,7 +89,7 @@ test("provisioning verifies the release checksum and pins the version", () => {
 	assert.match(provision, /sha256sum -c/);
 	assert.match(
 		readFileSync(join(root, "deployments", "example.env"), "utf8"),
-		/^FIGCRAFT_VERSION=0\.17\.0$/m,
+		/^FIGCRAFT_VERSION=0\.18\.1$/m,
 	);
 });
 
@@ -150,7 +150,7 @@ const otherDeployment = (extra = []) => {
 		'MEMBERS="sam@example.com kim@example.com"',
 		"ADMIN=sam@example.com",
 		"SECRET=other-key",
-		"FIGCRAFT_VERSION=0.17.0",
+		"FIGCRAFT_VERSION=0.18.1",
 		"LOCAL_PORT=47901",
 		...extra,
 	];

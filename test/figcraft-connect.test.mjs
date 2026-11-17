@@ -265,7 +265,7 @@ test("another deployment gets its own project, accounts and local port", () => {
 			'MEMBERS="sam@example.com"',
 			"ADMIN=sam@example.com",
 			"SECRET=other-key",
-			"FIGCRAFT_VERSION=0.17.0",
+			"FIGCRAFT_VERSION=0.18.1",
 			"LOCAL_PORT=47901",
 		].join("\n"),
 	);

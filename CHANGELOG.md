@@ -5,9 +5,13 @@ desktop app.
 
 ## Unreleased
 
+Supports FigCraft 0.18.1.
+
 - `bin/figcraft-connect` caps the tunnel and app logs in `~/.cache/figcraft/<deployment>/`: each
   keeps its newest 1 MiB and moves the 1 MiB before that to `<name>.log.1`. Before, a tunnel that
   kept failing to sign in wrote one log of 130 MB. `FIGCRAFT_LOG_MAX_BYTES` changes the size.
+- Installs FigCraft 0.18.1 by default (`deployments/example.env`). Upgrade the desktop apps to the
+  same version.
 
 ## 0.1.2 (2026-11-10)
 
