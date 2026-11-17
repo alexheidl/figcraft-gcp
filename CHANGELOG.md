@@ -12,6 +12,9 @@ Supports FigCraft 0.18.1.
   kept failing to sign in wrote one log of 130 MB. `FIGCRAFT_LOG_MAX_BYTES` changes the size.
 - Installs FigCraft 0.18.1 by default (`deployments/example.env`). Upgrade the desktop apps to the
   same version.
+- `server.toml` sets `max_log_mb = 8`. The server saves each file's recent edits (kept for apps
+  that reconnect) inside the file, and the default of 64 MiB equals the file cap, so a busy file
+  could pass the cap on its history alone. Run `bin/setup` to apply it to a running server.
 
 ## 0.1.2 (2026-11-10)
 

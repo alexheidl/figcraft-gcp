@@ -17,3 +17,8 @@ open_publish = false
 # The team list: files shared with a join code are listed under Home ▸ Online for everyone who
 # reaches the server (only people through IAP), who open them with edit access. No secret links.
 team_files = "edit"
+
+# Recent edits each file keeps for apps that reconnect. They are saved inside the file, and the
+# default (64 MiB) equals the file cap, so a busy file can pass the cap on its history alone. An
+# app further behind than this catches up with the whole file instead.
+max_log_mb = 8
