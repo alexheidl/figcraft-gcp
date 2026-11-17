@@ -27,6 +27,7 @@ function sandbox({
 	appRunning = false,
 	tokenValid = true,
 	loginFixes = true,
+	tunnelLines = 0,
 } = {}) {
 	const root = mkdtempSync(join(tmpdir(), "connect-"));
 	const stubs = join(root, "bin");
@@ -45,7 +46,9 @@ case "$*" in
   *"auth list"*) ${account ? `echo "${account}"` : "true"} ;;
   *print-access-token*) [ -e "${root}/token-ok" ] && echo token && exit 0; exit 1 ;;
   *"auth login"*) ${loginFixes ? `touch "${root}/token-ok"` : "true"} ;;
-  *start-iap-tunnel*) touch "${root}/tunnel-up"; exec sleep 0 ;;
+  *start-iap-tunnel*) touch "${root}/tunnel-up"
+    i=0; while [ $i -lt ${tunnelLines} ]; do i=$((i + 1)); echo "tunnel line $i: Traceback (most recent call last)"; done
+    exec sleep 0 ;;
 esac`,
 	);
 	const health = {
@@ -116,6 +119,19 @@ test("restarts a dead tunnel and does not duplicate a live one", () => {
 		readFileSync(join(dead.home, ".cache", "figcraft", "demo", "tunnel.pid"), "utf8").trim(),
 		"999999",
 	);
+});
+
+test("caps the tunnel log, keeping the newest lines and one older file", () => {
+	const s = sandbox({ tunnelLines: 400 });
+	const r = s.run([], { FIGCRAFT_LOG_MAX_BYTES: "2000" });
+	assert.equal(r.status, 0, r.stderr + r.stdout);
+	const dir = join(s.home, ".cache", "figcraft", "demo");
+	const log = readFileSync(join(dir, "tunnel.log"), "utf8");
+	const older = readFileSync(join(dir, "tunnel.log.1"), "utf8");
+	assert.ok(Buffer.byteLength(log) <= 2100, `tunnel.log is ${Buffer.byteLength(log)} bytes`);
+	assert.ok(Buffer.byteLength(older) <= 2100, `tunnel.log.1 is ${Buffer.byteLength(older)} bytes`);
+	assert.match(log, /tunnel line 400:/, "the newest line is kept");
+	assert.doesNotMatch(log + older, /tunnel line 1:/, "the oldest lines are dropped");
 });
 
 test("names the active account when it is not allowed", () => {

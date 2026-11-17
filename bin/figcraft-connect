@@ -32,6 +32,26 @@ say() {
 	command -v notify-send >/dev/null 2>&1 && notify-send "FigCraft" "$1" 2>/dev/null || true
 }
 
+# The tunnel and the app run for days, and a tunnel that keeps failing to sign in once wrote
+# 130 MB of the same traceback. Their logs keep the newest MAX bytes in FILE and the MAX before
+# that in FILE.1. FIGCRAFT_LOG_MAX_BYTES changes the size (default 1 MiB).
+LOG_MAX="${FIGCRAFT_LOG_MAX_BYTES:-1048576}"
+cap_log() { # cap_log FILE: copy standard input to FILE, moving FILE to FILE.1 past LOG_MAX bytes
+	local LC_ALL=C file=$1 size=0 line
+	trap '' HUP # the tunnel outlives the terminal it was started from, so its log must too
+	exec 3>"$file"
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		printf '%s\n' "$line" >&3
+		size=$((size + ${#line} + 1))
+		if ((size > LOG_MAX)); then
+			exec 3>&-
+			mv -f "$file" "$file.1"
+			exec 3>"$file"
+			size=0
+		fi
+	done
+}
+
 active_account() { gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | head -n 1; }
 healthy() { curl -fsS --max-time 2 "http://127.0.0.1:$PORT/healthz" >/dev/null 2>&1; }
 
@@ -63,9 +83,9 @@ if ! healthy; then
 	fi
 	tunnel=(gcloud compute start-iap-tunnel "$VM" "$SERVER_PORT" "--local-host-port=localhost:$PORT" "--zone=$ZONE" "--project=$PROJECT")
 	if [[ -n "${FIGCRAFT_CONNECT_NO_DETACH:-}" ]]; then
-		"${tunnel[@]}" >"$state/tunnel.log" 2>&1 &
+		"${tunnel[@]}" > >(cap_log "$state/tunnel.log") 2>&1 &
 	else
-		setsid nohup "${tunnel[@]}" >"$state/tunnel.log" 2>&1 &
+		setsid nohup "${tunnel[@]}" > >(cap_log "$state/tunnel.log") 2>&1 &
 	fi
 	echo $! >"$pidfile"
 	for _ in $(seq 1 40); do
@@ -104,9 +124,9 @@ if ! pgrep -x figcraft >/dev/null 2>&1; then
 	app=(figcraft)
 	[[ $CONTROL_PORT != off ]] && app+=(--control "$CONTROL_PORT")
 	if [[ -n "${FIGCRAFT_CONNECT_NO_DETACH:-}" ]]; then
-		"${app[@]}" >"$state/figcraft.log" 2>&1
+		"${app[@]}" > >(cap_log "$state/figcraft.log") 2>&1
 	else
-		setsid nohup "${app[@]}" >"$state/figcraft.log" 2>&1 &
+		setsid nohup "${app[@]}" > >(cap_log "$state/figcraft.log") 2>&1 &
 	fi
 fi
 
